@@ -48,8 +48,21 @@ diseases_list = {15: 'Fungal infection', 4: 'Allergy', 16: 'GERD', 9: 'Chronic c
 
 # Model Prediction function
 def get_predicted_value(patient_symptoms):
+    # Validate symptoms
+    valid_symptoms = []
+    invalid_symptoms = []
+    
+    for symptom in patient_symptoms:
+        if symptom in symptoms_dict:
+            valid_symptoms.append(symptom)
+        else:
+            invalid_symptoms.append(symptom)
+    
+    if not valid_symptoms:
+        raise ValueError(f"No valid symptoms found. Invalid symptoms: {', '.join(invalid_symptoms)}")
+    
     input_vector = np.zeros(len(symptoms_dict))
-    for item in patient_symptoms:
+    for item in valid_symptoms:
         input_vector[symptoms_dict[item]] = 1
     return diseases_list[svc.predict([input_vector])[0]]
 
@@ -68,18 +81,15 @@ def index():
 def home():
     if request.method == 'POST':
         symptoms = request.form.get('symptoms')
-        # mysysms = request.form.get('mysysms')
-        # print(mysysms)
-        print(symptoms)
-        if symptoms =="Symptoms":
-            message = "Please either write symptoms or you have written misspelled symptoms"
+        if not symptoms or symptoms == "Symptoms":
+            message = "Please enter valid symptoms"
             return render_template('index.html', message=message)
-        else:
 
-            # Split the user's input into a list of symptoms (assuming they are comma-separated)
-            user_symptoms = [s.strip() for s in symptoms.split(',')]
-            # Remove any extra characters, if any
-            user_symptoms = [symptom.strip("[]' ") for symptom in user_symptoms]
+        # Split and clean symptoms
+        user_symptoms = [s.strip().lower() for s in symptoms.split(',')]
+        user_symptoms = [s for s in user_symptoms if s]  # Remove empty strings
+        
+        try:
             predicted_disease = get_predicted_value(user_symptoms)
             dis_des, precautions, medications, rec_diet, workout = helper(predicted_disease)
 
@@ -87,27 +97,24 @@ def home():
             for i in precautions[0]:
                 my_precautions.append(i)
 
-            return render_template('index.html', predicted_disease=predicted_disease, dis_des=dis_des,
-                                   my_precautions=my_precautions, medications=medications, my_diet=rec_diet,
-                                   workout=workout)
+            return render_template('index.html', 
+                                predicted_disease=predicted_disease,
+                                dis_des=dis_des,
+                                my_precautions=my_precautions,
+                                medications=medications,
+                                my_diet=rec_diet,
+                                workout=workout)
+
+        except ValueError as e:
+            return render_template('index.html', 
+                                message=str(e) + "\nValid symptoms include: cough, fever, headache, etc.")
+        except Exception as e:
+            return render_template('index.html', 
+                                message="An error occurred. Please check your symptoms and try again.")
 
     return render_template('index.html')
 
 
-
-# about view funtion and path
-@app.route('/about')
-def about():
-    return render_template("about.html")
-# contact view funtion and path
-@app.route('/contact')
-def contact():
-    return render_template("contact.html")
-
-# developer view funtion and path
-@app.route('/developer')
-def developer():
-    return render_template("developer.html")
 
 # about view funtion and path
 @app.route('/blog')
